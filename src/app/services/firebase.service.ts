@@ -7,15 +7,17 @@ import { Observable, Subscription } from 'rxjs';
   providedIn: 'root'
 })
 export class FirebaseService {
- result:any;
+  result: any;
+  basePath: string = "uploads";
   constructor(private storage: AngularFireStorage) { }
 
   pushFileToStorage(blob: Blob, fileName: string) {
-    let storageRef = this.storage.storage.ref();
-    let firebaseFileUrl = `uploads-test`;
-    let uploadTask = storageRef.child(firebaseFileUrl).put(blob);
-    return uploadTask.snapshot.ref.getDownloadURL()
 
+    const filePath = `${this.basePath}/${fileName}`;
+    const storageRef = this.storage.ref(filePath);
+    const uploadTask = this.storage.upload(filePath, blob);
+
+    return uploadTask.snapshotChanges();
   }
 
 

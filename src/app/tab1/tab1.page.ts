@@ -8,6 +8,7 @@ import { File } from '@awesome-cordova-plugins/file/ngx';
 import { WebView } from '@awesome-cordova-plugins/ionic-webview/ngx';
 import { CaptureVideoOptions, MediaFile } from '@awesome-cordova-plugins/media-capture';
 import { MediaCapture } from '@awesome-cordova-plugins/media-capture/ngx';
+import { Platform } from '@ionic/angular';
 import { FirebaseService } from '../services/firebase.service';
 
 @Component({
@@ -25,6 +26,7 @@ export class Tab1Page {
     private file: File,
     private webview: WebView,
     private FilePath: FilePath,
+    private platform: Platform,
     private firebaseService: FirebaseService) { }
 
 
@@ -56,7 +58,7 @@ export class Tab1Page {
     this.camera.getPicture(options).then(
       (x) => {
         this.resolveFilePath(x);
-
+         
       },
       error => {
         alert(JSON.stringify(error));
@@ -67,10 +69,25 @@ export class Tab1Page {
 
   resolveFilePath(file: MediaFile) {
     
-    this.FilePath.resolveNativePath(file.fullPath).then(
-      (x) => {
-        this.readBinaryFile(x, file.name, file.type);
-      });
+    if(this.platform.is("android")){
+      this.FilePath.resolveNativePath(file.fullPath).then(
+        (x) => {
+          this.readBinaryFile(x, file.name, file.type);
+        });
+    }else{
+      const path=this.transformIosFilePath(file.fullPath);
+      this.readBinaryFile(path, file.name, file.type);
+    }
+    
+  }
+
+  transformIosFilePath(path: string){
+    // /private/var/mobile/Containers/Data/Application/F2C86164-CD9D-4685-BE28-47B413AA0284/tmp/66984430706__9EC1E055-9A92-456D-A919-F9807375ACB9.MOV
+    if(path.includes("/private/")){
+      path=path.replace("/private/", "file:///");
+    }
+    return path;
+
   }
 
   readBinaryFile(normalizedFilePath: string, name: string, type: string) {
@@ -83,8 +100,11 @@ export class Tab1Page {
       var blob = new Blob([new Uint8Array(x)], { type: type });
       document.querySelector('#myVideo').setAttribute("src",  URL.createObjectURL(blob));
       console.log(blob);
-      this.firebaseService.pushFileToStorage(blob, name).then(x=>{
-        console.log("Firebase url: ", x);
+      this.firebaseService.pushFileToStorage(blob, name).subscribe(x=>{
+        x.ref.getDownloadURL().then((k)=>{
+          console.log("Firebase url: ", k);
+        });
+        
       });
     },
       error => {
